@@ -75,6 +75,7 @@ fun MusicApp() {
     val currentSong by viewModel.currentSong.collectAsState()
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (currentSong != null) {
                 NowPlayingBar(viewModel = viewModel)
