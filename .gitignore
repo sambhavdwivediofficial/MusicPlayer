@@ -3,7 +3,6 @@
 /local.properties
 /.idea/caches
 /.idea/libraries
-/.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
@@ -13,3 +12,18 @@
 .externalNativeBuild
 .cxx
 local.properties
+*.jks
+*.keystore
+*/build/
+app/release/
+app/debug/
+/.idea/modules.xml
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/contentModel.xml
+.idea/**/dictionaries
+.idea/**/shelf
+.idea/**/usage.statistics.xml
+.idea/**/dataSources/
+.idea/replstate.xml
+.idea/httpRequests
