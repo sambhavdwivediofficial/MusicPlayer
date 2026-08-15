@@ -17,6 +17,7 @@ import com.sambhavdwivedi.musicplayer.data.MusicRepository
 import com.sambhavdwivedi.musicplayer.model.Song
 import com.sambhavdwivedi.musicplayer.playback.MusicPlaybackService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -46,7 +47,19 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
-    private val _sortOrder = MutableStateFlow(SortOrder.TITLE_AZ)
+    private val _positionMs = MutableStateFlow(0L)
+    val positionMs: StateFlow<Long> = _positionMs.asStateFlow()
+
+    private val _durationMs = MutableStateFlow(0L)
+    val durationMs: StateFlow<Long> = _durationMs.asStateFlow()
+
+    private val _shuffleEnabled = MutableStateFlow(false)
+    val shuffleEnabled: StateFlow<Boolean> = _shuffleEnabled.asStateFlow()
+
+    private val _repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
+    val repeatMode: StateFlow<Int> = _repeatMode.asStateFlow()
+
+    private val _sortOrder = MutableStateFlow(SortOrder.DATE_ADDED)
     val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
 
     private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
@@ -62,6 +75,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
         }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val id = mediaItem?.mediaId?.toLongOrNull()
+            if (id != null) {
+                _currentSong.value = _songs.value.find { it.id == id }
+            }
+        }
+
+        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+            _shuffleEnabled.value = shuffleModeEnabled
+        }
+
+        override fun onRepeatModeChanged(repeatMode: Int) {
+            _repeatMode.value = repeatMode
+        }
     }
 
     init {
@@ -74,6 +102,16 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             controller = controllerFuture.get()
             controller?.addListener(playerListener)
         }, MoreExecutors.directExecutor())
+
+        viewModelScope.launch {
+            while (true) {
+                controller?.let {
+                    _positionMs.value = it.currentPosition.coerceAtLeast(0)
+                    _durationMs.value = it.duration.coerceAtLeast(0)
+                }
+                delay(500)
+            }
+        }
     }
 
     fun loadSongs() {
@@ -85,9 +123,15 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun playSong(song: Song) {
-        val mediaItem = MediaItem.fromUri(song.uri)
-        controller?.setMediaItem(mediaItem)
+    fun playSong(song: Song, queue: List<Song> = _songs.value) {
+        val mediaItems = queue.map {
+            MediaItem.Builder()
+                .setUri(it.uri)
+                .setMediaId(it.id.toString())
+                .build()
+        }
+        val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+        controller?.setMediaItems(mediaItems, startIndex, 0L)
         controller?.prepare()
         controller?.play()
         _currentSong.value = song
@@ -95,6 +139,38 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun togglePlayPause() {
         controller?.let { if (it.isPlaying) it.pause() else it.play() }
+    }
+
+    fun skipNext() {
+        controller?.seekToNextMediaItem()
+    }
+
+    fun skipPrevious() {
+        controller?.seekToPreviousMediaItem()
+    }
+
+    fun seekTo(ms: Long) {
+        val duration = controller?.duration?.coerceAtLeast(0) ?: 0
+        controller?.seekTo(ms.coerceIn(0, duration))
+    }
+
+    fun seekBy(deltaMs: Long) {
+        val current = controller?.currentPosition ?: 0
+        val duration = controller?.duration?.coerceAtLeast(0) ?: 0
+        controller?.seekTo((current + deltaMs).coerceIn(0, duration))
+    }
+
+    fun toggleShuffle() {
+        controller?.let { it.shuffleModeEnabled = !it.shuffleModeEnabled }
+    }
+
+    fun cycleRepeatMode() {
+        val next = when (_repeatMode.value) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+        controller?.repeatMode = next
     }
 
     fun setSortOrder(order: SortOrder) {
@@ -128,7 +204,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 resolver.delete(song.uri, null, null)
             } catch (_: Exception) {
-                // Older Android versions: best-effort delete
             }
         }
     }

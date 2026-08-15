@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,13 +36,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sambhavdwivedi.musicplayer.ui.MusicViewModel
+import com.sambhavdwivedi.musicplayer.ui.NowPlayingScreen
 import com.sambhavdwivedi.musicplayer.ui.SongListScreen
 import com.sambhavdwivedi.musicplayer.ui.theme.MusicPlayerTheme
+import androidx.compose.ui.graphics.Color
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+
+        window.statusBarColor = android.graphics.Color.rgb(8, 8, 8)
+
         setContent {
             MusicPlayerTheme {
                 MusicApp()
@@ -54,6 +59,7 @@ class MainActivity : ComponentActivity() {
 fun MusicApp() {
     val viewModel: MusicViewModel = viewModel()
     var hasPermission by remember { mutableStateOf(false) }
+    var showPlayer by remember { mutableStateOf(false) }
 
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_AUDIO
@@ -74,29 +80,33 @@ fun MusicApp() {
 
     val currentSong by viewModel.currentSong.collectAsState()
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            if (currentSong != null) {
-                NowPlayingBar(viewModel = viewModel)
+    if (showPlayer && currentSong != null) {
+        NowPlayingScreen(viewModel = viewModel, onBack = { showPlayer = false })
+    } else {
+        Scaffold(
+            containerColor = Color(0xFF080808),
+            bottomBar = {
+                if (currentSong != null) {
+                    NowPlayingBar(viewModel = viewModel, onClick = { showPlayer = true })
+                }
             }
-        }
-    ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            if (hasPermission) {
-                SongListScreen(viewModel = viewModel)
-            } else {
-                Text(
-                    "Music permission chahiye songs dikhane ke liye",
-                    modifier = Modifier.padding(16.dp)
-                )
+        ) { innerPadding ->
+            Box(modifier = Modifier.padding(innerPadding)) {
+                if (hasPermission) {
+                    SongListScreen(viewModel = viewModel, onSongOpen = { showPlayer = true })
+                } else {
+                    Text(
+                        "Music permission chahiye songs dikhane ke liye",
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun NowPlayingBar(viewModel: MusicViewModel) {
+fun NowPlayingBar(viewModel: MusicViewModel, onClick: () -> Unit) {
     val song by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
 
@@ -106,6 +116,7 @@ fun NowPlayingBar(viewModel: MusicViewModel) {
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
+            .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
