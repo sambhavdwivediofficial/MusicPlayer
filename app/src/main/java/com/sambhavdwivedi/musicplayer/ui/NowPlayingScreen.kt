@@ -11,6 +11,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -31,7 +32,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
@@ -51,7 +51,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -291,29 +290,49 @@ private fun MobilePlayerLayout(
 
         Spacer(Modifier.height(24.dp))
 
-        AnimatedContent(
-            targetState = song,
-            transitionSpec = {
-                if (direction >= 0) {
-                    (slideInHorizontally(tween(280)) { w -> w } + fadeIn(tween(280))) togetherWith
-                            (slideOutHorizontally(tween(280)) { w -> -w } + fadeOut(tween(280)))
-                } else {
-                    (slideInHorizontally(tween(280)) { w -> -w } + fadeIn(tween(280))) togetherWith
-                            (slideOutHorizontally(tween(280)) { w -> w } + fadeOut(tween(280)))
-                }
-            },
-            label = "art"
-        ) { s ->
-            ArtBox(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-                iconSize = 96.dp,
-                onDoubleTapSeek = onDoubleTapSeek
-            )
+        // ART BOX AREA
+        // This takes the remaining middle space and centers the art box.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center
+        ) {
+            AnimatedContent(
+                targetState = song,
+                transitionSpec = {
+                    if (direction >= 0) {
+                        (
+                                slideInHorizontally(tween(280)) { w -> w } +
+                                        fadeIn(tween(280))
+                                ) togetherWith (
+                                slideOutHorizontally(tween(280)) { w -> -w } +
+                                        fadeOut(tween(280))
+                                )
+                    } else {
+                        (
+                                slideInHorizontally(tween(280)) { w -> -w } +
+                                        fadeIn(tween(280))
+                                ) togetherWith (
+                                slideOutHorizontally(tween(280)) { w -> w } +
+                                        fadeOut(tween(280))
+                                )
+                    }
+                },
+                label = "art"
+            ) { _ ->
+                ArtBox(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f),
+                    iconSize = 96.dp,
+                    onDoubleTapSeek = onDoubleTapSeek
+                )
+            }
         }
 
-        Spacer(Modifier.height(28.dp))
+        // Song name stays below the centered art box.
+        Spacer(Modifier.height(20.dp))
 
         Text(
             text = song.title,
@@ -324,8 +343,9 @@ private fun MobilePlayerLayout(
             overflow = TextOverflow.Ellipsis
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(12.dp))
 
+        // Progress moves down with the song name.
         ProgressSection(
             positionMs = positionMs,
             durationMs = durationMs,
@@ -335,7 +355,8 @@ private fun MobilePlayerLayout(
             onSeekFinished = onSeekFinished
         )
 
-        Spacer(Modifier.weight(1f))
+        // Small controlled gap before controls.
+        Spacer(Modifier.height(12.dp))
 
         ControlsRow(
             isPlaying = isPlaying,
@@ -399,18 +420,30 @@ private fun TabletPlayerLayout(
         )
 
         Box(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
             AnimatedContent(
                 targetState = song,
                 transitionSpec = {
                     if (direction >= 0) {
-                        (slideInHorizontally(tween(280)) { w -> w } + fadeIn(tween(280))) togetherWith
-                                (slideOutHorizontally(tween(280)) { w -> -w } + fadeOut(tween(280)))
+                        (
+                                slideInHorizontally(tween(280)) { w -> w } +
+                                        fadeIn(tween(280))
+                                ) togetherWith (
+                                slideOutHorizontally(tween(280)) { w -> -w } +
+                                        fadeOut(tween(280))
+                                )
                     } else {
-                        (slideInHorizontally(tween(280)) { w -> -w } + fadeIn(tween(280))) togetherWith
-                                (slideOutHorizontally(tween(280)) { w -> w } + fadeOut(tween(280)))
+                        (
+                                slideInHorizontally(tween(280)) { w -> -w } +
+                                        fadeIn(tween(280))
+                                ) togetherWith (
+                                slideOutHorizontally(tween(280)) { w -> w } +
+                                        fadeOut(tween(280))
+                                )
                     }
                 },
                 label = "art_tablet"
@@ -437,21 +470,27 @@ private fun TabletPlayerLayout(
                         tint = ArtIconColor,
                         modifier = Modifier.size(140.dp)
                     )
-
-                    ControlsRow(
-                        isPlaying = isPlaying,
-                        shuffleEnabled = shuffleEnabled,
-                        repeatMode = repeatMode,
-                        onTogglePlay = onTogglePlay,
-                        onNext = onNext,
-                        onPrevious = onPrevious,
-                        onToggleShuffle = onToggleShuffle,
-                        onCycleRepeat = onCycleRepeat,
-                        modifier = Modifier
-                    )
                 }
             }
         }
+
+        // Controls are now BELOW the art box
+        // and ABOVE the progress bar.
+        Spacer(Modifier.height(16.dp))
+
+        ControlsRow(
+            isPlaying = isPlaying,
+            shuffleEnabled = shuffleEnabled,
+            repeatMode = repeatMode,
+            onTogglePlay = onTogglePlay,
+            onNext = onNext,
+            onPrevious = onPrevious,
+            onToggleShuffle = onToggleShuffle,
+            onCycleRepeat = onCycleRepeat,
+            modifier = Modifier
+        )
+
+        Spacer(Modifier.height(12.dp))
 
         ProgressSection(
             positionMs = positionMs,
@@ -483,7 +522,7 @@ private fun PlayerTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBack) {
-            Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
         }
         if (title != null) {
             Text(
