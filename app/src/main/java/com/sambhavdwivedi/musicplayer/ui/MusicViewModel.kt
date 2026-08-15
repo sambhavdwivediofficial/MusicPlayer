@@ -150,14 +150,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun seekTo(ms: Long) {
-        val duration = controller?.duration?.coerceAtLeast(0) ?: 0
-        controller?.seekTo(ms.coerceIn(0, duration))
+        controller?.seekTo(ms.coerceAtLeast(0))
     }
 
     fun seekBy(deltaMs: Long) {
         val current = controller?.currentPosition ?: 0
-        val duration = controller?.duration?.coerceAtLeast(0) ?: 0
-        controller?.seekTo((current + deltaMs).coerceIn(0, duration))
+        controller?.seekTo((current + deltaMs).coerceAtLeast(0))
     }
 
     fun toggleShuffle() {
