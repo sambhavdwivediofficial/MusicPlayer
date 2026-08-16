@@ -3,6 +3,10 @@ package com.sambhavdwivedi.musicplayer.ui
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -13,6 +17,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -44,16 +50,21 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -79,6 +90,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.filled.VolumeUp
 
 private val PlayerBackground = Color(0xFF080808)
 private val ArtBoxColor = Color(0xFF3B3F4C)
@@ -94,8 +107,11 @@ fun NowPlayingScreen(viewModel: MusicViewModel, onBack: () -> Unit) {
     val positionMs by viewModel.positionMs.collectAsState()
     val shuffleEnabled by viewModel.shuffleEnabled.collectAsState()
     val repeatMode by viewModel.repeatMode.collectAsState()
+    val playbackSpeed by viewModel.playbackSpeed.collectAsState()
 
     var menuExpanded by remember { mutableStateOf(false) }
+    var showSpeedSheet by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val favoriteIds by viewModel.favoriteIds.collectAsState()
     var isDragging by remember { mutableStateOf(false) }
     var dragPosition by remember { mutableFloatStateOf(0f) }
@@ -108,10 +124,18 @@ fun NowPlayingScreen(viewModel: MusicViewModel, onBack: () -> Unit) {
     val audioManager = remember {
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     }
+    val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
 
     val currentSong = song ?: return
     val durationMs = currentSong.durationMs
     val isFavorite = currentSong.id in favoriteIds
+
+    val deleteLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) {
+        viewModel.loadSongs()
+        onBack()
+    }
 
     androidx.activity.compose.BackHandler {
         onBack()
@@ -192,8 +216,14 @@ fun NowPlayingScreen(viewModel: MusicViewModel, onBack: () -> Unit) {
                 onShare = { shareSong(context, currentSong) },
                 onMenuClick = { menuExpanded = true },
                 onInfoClick = { showInfoDialog = true },
+                onSpeedClick = { showSpeedSheet = true },
+                onDeleteClick = { showDeleteConfirm = true },
+                playbackSpeed = playbackSpeed,
                 menuExpanded = menuExpanded,
-                onMenuDismiss = { menuExpanded = false }
+                onMenuDismiss = { menuExpanded = false },
+                showVolumeHud = showVolumeHud,
+                volumeLevel = volumeLevel,
+                maxVolume = maxVolume
             )
         } else {
             MobilePlayerLayout(
@@ -223,26 +253,59 @@ fun NowPlayingScreen(viewModel: MusicViewModel, onBack: () -> Unit) {
                 onShare = { shareSong(context, currentSong) },
                 onMenuClick = { menuExpanded = true },
                 onInfoClick = { showInfoDialog = true },
+                onSpeedClick = { showSpeedSheet = true },
+                onDeleteClick = { showDeleteConfirm = true },
+                playbackSpeed = playbackSpeed,
                 menuExpanded = menuExpanded,
-                onMenuDismiss = { menuExpanded = false }
+                onMenuDismiss = { menuExpanded = false },
+                showVolumeHud = showVolumeHud,
+                volumeLevel = volumeLevel,
+                maxVolume = maxVolume
             )
-        }
-
-        if (showVolumeHud) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF1C1C1E))
-                    .padding(horizontal = 24.dp, vertical = 14.dp)
-            ) {
-                Text("Volume: $volumeLevel", color = Color.White, fontSize = 16.sp)
-            }
         }
     }
 
     if (showInfoDialog) {
         SongInfoDialog(song = currentSong, onDismiss = { showInfoDialog = false })
+    }
+
+    if (showSpeedSheet) {
+        PlaybackSpeedSheet(
+            currentSpeed = playbackSpeed,
+            onSpeedChange = { viewModel.setPlaybackSpeed(it) },
+            onDismiss = { showSpeedSheet = false }
+        )
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor = Color(0xFF080808),
+            titleContentColor = Color.White,
+            textContentColor = Color.White,
+            title = { Text("Delete this song?") },
+            text = { Text("\"${currentSong.title}\" will be permanently deleted from your device.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        val pendingIntent = viewModel.buildDeletePendingIntentForSong(currentSong)
+                        deleteLauncher.launch(
+                            IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                        )
+                    } else {
+                        viewModel.deleteSongLegacy(currentSong)
+                        viewModel.loadSongs()
+                        onBack()
+                    }
+                }) {
+                    Text("Delete", color = Color(0xFFFF6B6B))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 
@@ -271,8 +334,14 @@ private fun MobilePlayerLayout(
     onShare: () -> Unit,
     onMenuClick: () -> Unit,
     onInfoClick: () -> Unit,
+    onSpeedClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    playbackSpeed: Float,
     menuExpanded: Boolean,
-    onMenuDismiss: () -> Unit
+    onMenuDismiss: () -> Unit,
+    showVolumeHud: Boolean,
+    volumeLevel: Int,
+    maxVolume: Int
 ) {
     Column(
         modifier = Modifier
@@ -288,7 +357,9 @@ private fun MobilePlayerLayout(
             onShare = onShare,
             onMenuClick = onMenuClick,
             onInfoClick = onInfoClick,
-            onDeleteClick = {},
+            onDeleteClick = onDeleteClick,
+            onSpeedClick = onSpeedClick,
+            playbackSpeed = playbackSpeed,
             menuExpanded = menuExpanded,
             onMenuDismiss = onMenuDismiss
         )
@@ -296,47 +367,58 @@ private fun MobilePlayerLayout(
         Spacer(Modifier.height(24.dp))
 
         // ART BOX AREA
-        // This takes the remaining middle space and centers the art box.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
             contentAlignment = Alignment.Center
         ) {
-            AnimatedContent(
-                targetState = song,
-                transitionSpec = {
-                    if (direction >= 0) {
-                        (
-                                slideInHorizontally(tween(280)) { w -> w } +
-                                        fadeIn(tween(280))
-                                ) togetherWith (
-                                slideOutHorizontally(tween(280)) { w -> -w } +
-                                        fadeOut(tween(280))
-                                )
-                    } else {
-                        (
-                                slideInHorizontally(tween(280)) { w -> -w } +
-                                        fadeIn(tween(280))
-                                ) togetherWith (
-                                slideOutHorizontally(tween(280)) { w -> w } +
-                                        fadeOut(tween(280))
-                                )
-                    }
-                },
-                label = "art"
-            ) { _ ->
-                ArtBox(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f),
-                    iconSize = 96.dp,
-                    onDoubleTapSeek = onDoubleTapSeek
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+            ) {
+                AnimatedContent(
+                    targetState = song,
+                    transitionSpec = {
+                        if (direction >= 0) {
+                            (
+                                    slideInHorizontally(tween(280)) { w -> w } +
+                                            fadeIn(tween(280))
+                                    ) togetherWith (
+                                    slideOutHorizontally(tween(280)) { w -> -w } +
+                                            fadeOut(tween(280))
+                                    )
+                        } else {
+                            (
+                                    slideInHorizontally(tween(280)) { w -> -w } +
+                                            fadeIn(tween(280))
+                                    ) togetherWith (
+                                    slideOutHorizontally(tween(280)) { w -> w } +
+                                            fadeOut(tween(280))
+                                    )
+                        }
+                    },
+                    label = "art"
+                ) { _ ->
+                    ArtBox(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                        iconSize = 96.dp,
+                        onDoubleTapSeek = onDoubleTapSeek
+                    )
+                }
+
+                if (showVolumeHud) {
+                    VolumeHud(
+                        percent = (volumeLevel.toFloat() / maxVolume.toFloat())
+                            .coerceIn(0f, 1f),
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
         }
 
-        // Song name stays below the centered art box.
         Spacer(Modifier.height(20.dp))
 
         Text(
@@ -350,7 +432,6 @@ private fun MobilePlayerLayout(
 
         Spacer(Modifier.height(12.dp))
 
-        // Progress moves down with the song name.
         ProgressSection(
             positionMs = positionMs,
             durationMs = durationMs,
@@ -360,7 +441,6 @@ private fun MobilePlayerLayout(
             onSeekFinished = onSeekFinished
         )
 
-        // Small controlled gap before controls.
         Spacer(Modifier.height(12.dp))
 
         ControlsRow(
@@ -402,8 +482,14 @@ private fun TabletPlayerLayout(
     onShare: () -> Unit,
     onMenuClick: () -> Unit,
     onInfoClick: () -> Unit,
+    onSpeedClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    playbackSpeed: Float,
     menuExpanded: Boolean,
-    onMenuDismiss: () -> Unit
+    onMenuDismiss: () -> Unit,
+    showVolumeHud: Boolean,
+    volumeLevel: Int,
+    maxVolume: Int
 ) {
     Column(
         modifier = Modifier
@@ -419,7 +505,9 @@ private fun TabletPlayerLayout(
             onShare = onShare,
             onMenuClick = onMenuClick,
             onInfoClick = onInfoClick,
-            onDeleteClick = {},
+            onDeleteClick = onDeleteClick,
+            onSpeedClick = onSpeedClick,
+            playbackSpeed = playbackSpeed,
             menuExpanded = menuExpanded,
             onMenuDismiss = onMenuDismiss
         )
@@ -458,29 +546,40 @@ private fun TabletPlayerLayout(
                         .widthIn(max = 520.dp)
                         .fillMaxWidth(0.6f)
                         .aspectRatio(1f)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(ArtBoxColor)
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onDoubleTap = { offset ->
-                                    onDoubleTapSeek(offset.x < size.width / 2)
-                                }
-                            )
-                        },
-                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.MusicNote,
-                        contentDescription = null,
-                        tint = ArtIconColor,
-                        modifier = Modifier.size(140.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(ArtBoxColor)
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onDoubleTap = { offset ->
+                                        onDoubleTapSeek(offset.x < size.width / 2)
+                                    }
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.MusicNote,
+                            contentDescription = null,
+                            tint = ArtIconColor,
+                            modifier = Modifier.size(140.dp)
+                        )
+                    }
+
+                    if (showVolumeHud) {
+                        VolumeHud(
+                            percent = (volumeLevel.toFloat() / maxVolume.toFloat())
+                                .coerceIn(0f, 1f),
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
                 }
             }
         }
 
-        // Controls are now BELOW the art box
-        // and ABOVE the progress bar.
         Spacer(Modifier.height(16.dp))
 
         ControlsRow(
@@ -519,6 +618,8 @@ private fun PlayerTopBar(
     onMenuClick: () -> Unit,
     onInfoClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onSpeedClick: () -> Unit,
+    playbackSpeed: Float,
     menuExpanded: Boolean,
     onMenuDismiss: () -> Unit
 ) {
@@ -569,6 +670,19 @@ private fun PlayerTopBar(
                     onClick = {
                         onMenuDismiss()
                         onInfoClick()
+                    }
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "Playback speed  •  ${"%.1f".format(playbackSpeed)}x",
+                            color = Color.White
+                        )
+                    },
+                    leadingIcon = { Icon(Icons.Filled.Speed, contentDescription = null, tint = Color.White) },
+                    onClick = {
+                        onMenuDismiss()
+                        onSpeedClick()
                     }
                 )
                 DropdownMenuItem(
@@ -715,6 +829,113 @@ private fun ControlsRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlaybackSpeedSheet(
+    currentSpeed: Float,
+    onSpeedChange: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var speed by remember { mutableFloatStateOf(currentSpeed) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color(0xFF141414),
+        contentColor = Color.White,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 10.dp)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color(0xFF5A5A5C))
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 8.dp)
+        ) {
+            Text("Playback speed", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+
+            Spacer(Modifier.height(20.dp))
+
+            Text(
+                text = "%.1fx".format(speed),
+                color = Color.White,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            Slider(
+                value = speed,
+                onValueChange = {
+                    speed = it
+                    onSpeedChange(it)
+                },
+                valueRange = 0.5f..2.0f,
+                steps = 14,
+                colors = SliderDefaults.colors(
+                    thumbColor = Color.White,
+                    activeTrackColor = Color.White,
+                    inactiveTrackColor = Color(0xFF3A3A3C)
+                )
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("0.5x", color = DimText, fontSize = 12.sp)
+                Text("1.0x", color = DimText, fontSize = 12.sp)
+                Text("2.0x", color = DimText, fontSize = 12.sp)
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                listOf(0.5f, 0.8f, 1.0f, 1.5f, 2.0f).forEach { preset ->
+                    val isSelected = abs(speed - preset) < 0.01f
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(if (isSelected) Color.White else Color(0xFF2C2C2E))
+                            .border(
+                                width = 1.dp,
+                                color = if (isSelected) Color.White else Color(0xFF4A4A4C),
+                                shape = CircleShape
+                            )
+                            .clickable {
+                                speed = preset
+                                onSpeedChange(preset)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "%.1f".format(preset),
+                            color = if (isSelected) Color.Black else Color.White,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
 @Composable
 private fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
@@ -782,4 +1003,43 @@ private fun formatSizeDialog(bytes: Long): String {
 private fun formatDateDialog(epochSeconds: Long): String {
     val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
     return sdf.format(Date(epochSeconds * 1000))
+}
+
+@Composable
+private fun VolumeHud(percent: Float, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .width(40.dp)
+            .height(170.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.Black.copy(alpha = 0.35f)),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(bottom = 34.dp)
+                .width(3.dp)
+                .fillMaxHeight(percent.coerceIn(0.02f, 1f))
+                .align(Alignment.BottomCenter)
+                .background(Color(0xFF2196F3), RoundedCornerShape(2.dp)),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(14.dp)
+                    .height(2.dp)
+                    .background(Color.White)
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Filled.VolumeUp,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 10.dp)
+                .size(18.dp)
+        )
+    }
 }

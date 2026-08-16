@@ -171,6 +171,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         controller?.seekTo((current + deltaMs).coerceAtLeast(0))
     }
 
+    private val _playbackSpeed = MutableStateFlow(1.0f)
+    val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
+
+    fun setPlaybackSpeed(speed: Float) {
+        controller?.setPlaybackSpeed(speed)
+        _playbackSpeed.value = speed
+    }
+
     fun toggleShuffle() {
         controller?.let { it.shuffleModeEnabled = !it.shuffleModeEnabled }
     }
@@ -213,6 +221,21 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun buildDeletePendingIntent(): PendingIntent {
         val uris = selectedSongs().map { it.uri }
         return MediaStore.createDeleteRequest(getApplication<Application>().contentResolver, uris)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    fun buildDeletePendingIntentForSong(song: Song): PendingIntent {
+        return MediaStore.createDeleteRequest(
+            getApplication<Application>().contentResolver,
+            listOf(song.uri)
+        )
+    }
+
+    fun deleteSongLegacy(song: Song) {
+        try {
+            getApplication<Application>().contentResolver.delete(song.uri, null, null)
+        } catch (_: Exception) {
+        }
     }
 
     fun deleteSelectedLegacy() {
