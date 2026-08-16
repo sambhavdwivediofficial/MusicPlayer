@@ -2,9 +2,16 @@ package com.sambhavdwivedi.musicplayer.ui
 
 import android.content.Intent
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -73,8 +80,13 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
     val displayGroups by viewModel.displayGroups.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
+    val isPlayingGlobal by viewModel.isPlaying.collectAsState()
     val selectedIds by viewModel.selectedIds.collectAsState()
     val selectionMode = selectedIds.isNotEmpty()
+
+    BackHandler(enabled = selectionMode) {
+        viewModel.clearSelection()
+    }
 
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -158,10 +170,24 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                                 .background(MaterialTheme.colorScheme.surface)
                         ) {
                             DropdownMenuItem(
+                                text = { Text("Home") },
+                                onClick = {
+                                    sortMenuExpanded = false
+                                    viewModel.setSortOrder(SortOrder.DATE_ADDED)
+                                }
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Sort: Title (A-Z)") },
                                 onClick = {
                                     sortMenuExpanded = false
                                     viewModel.setSortOrder(SortOrder.TITLE_AZ)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Favourites") },
+                                onClick = {
+                                    sortMenuExpanded = false
+                                    viewModel.setSortOrder(SortOrder.FAVORITES)
                                 }
                             )
                             DropdownMenuItem(
@@ -234,14 +260,19 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                             }
                         }
                         items(group.songs, key = { it.id }) { song ->
+                            val isCurrent = song.id == currentSong?.id
                             SongRow(
                                 song = song,
-                                isPlaying = song.id == currentSong?.id,
+                                isPlaying = isCurrent,
                                 isSelected = song.id in selectedIds,
                                 selectionMode = selectionMode,
+                                showWave = isCurrent && isPlayingGlobal,
                                 onClick = {
-                                    if (selectionMode) viewModel.toggleSelection(song)
-                                    else {
+                                    if (selectionMode) {
+                                        viewModel.toggleSelection(song)
+                                    } else if (isCurrent) {
+                                        onSongOpen()
+                                    } else {
                                         viewModel.playSong(song, displayGroups.flatMap { it.songs })
                                         onSongOpen()
                                     }
@@ -257,6 +288,9 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
         if (showDeleteConfirm) {
             AlertDialog(
                 onDismissRequest = { showDeleteConfirm = false },
+                containerColor = Color(0xFF080808),
+                titleContentColor = Color.White,
+                textContentColor = Color.White,
                 title = { Text("Delete ${selectedIds.size} song(s)?") },
                 text = { Text("Permanently delete these songs?") },
                 confirmButton = {
@@ -291,6 +325,7 @@ fun SongRow(
     isPlaying: Boolean,
     isSelected: Boolean,
     selectionMode: Boolean,
+    showWave: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
@@ -335,14 +370,75 @@ fun SongRow(
             Text(
                 text = formatDuration(song.durationMs),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = if (showWave) 8.dp else 0.dp)
             )
+
+            if (showWave) {
+                EqualizerBars()
+            }
 
             if (selectionMode) {
                 Spacer(Modifier.width(10.dp))
                 SelectionCircle(isSelected = isSelected)
             }
         }
+    }
+}
+
+@Composable
+private fun EqualizerBars() {
+    val infiniteTransition = rememberInfiniteTransition(label = "eq")
+    val bar1 by infiniteTransition.animateFloat(
+        initialValue = 4f,
+        targetValue = 16f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(450, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bar1"
+    )
+    val bar2 by infiniteTransition.animateFloat(
+        initialValue = 16f,
+        targetValue = 6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(380, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bar2"
+    )
+    val bar3 by infiniteTransition.animateFloat(
+        initialValue = 8f,
+        targetValue = 18f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(520, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bar3"
+    )
+    val barColor = Color(0xFF8A8A8E)
+    Row(
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Box(
+            Modifier
+                .width(3.dp)
+                .height(bar1.dp)
+                .background(barColor, RoundedCornerShape(1.dp))
+        )
+        Box(
+            Modifier
+                .width(3.dp)
+                .height(bar2.dp)
+                .background(barColor, RoundedCornerShape(1.dp))
+        )
+        Box(
+            Modifier
+                .width(3.dp)
+                .height(bar3.dp)
+                .background(barColor, RoundedCornerShape(1.dp))
+        )
     }
 }
 

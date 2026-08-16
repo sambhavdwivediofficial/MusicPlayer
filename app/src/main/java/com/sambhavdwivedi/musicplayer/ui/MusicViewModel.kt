@@ -13,6 +13,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
+import com.sambhavdwivedi.musicplayer.data.FavoritesRepository
 import com.sambhavdwivedi.musicplayer.data.MusicRepository
 import com.sambhavdwivedi.musicplayer.model.Song
 import com.sambhavdwivedi.musicplayer.playback.MusicPlaybackService
@@ -27,13 +28,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class SortOrder { TITLE_AZ, DATE_ADDED }
+enum class SortOrder { TITLE_AZ, DATE_ADDED, FAVORITES }
 
 data class SongGroup(val header: String?, val songs: List<Song>)
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = MusicRepository(application)
+    private val favoritesRepository = FavoritesRepository(application)
 
     private val _songs = MutableStateFlow<List<Song>>(emptyList())
     val songs: StateFlow<List<Song>> = _songs.asStateFlow()
@@ -65,9 +67,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
     val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
 
+    val favoriteIds: StateFlow<Set<Long>> = favoritesRepository.favoriteIds
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
     val displayGroups: StateFlow<List<SongGroup>> =
-        combine(_songs, _sortOrder) { songs, order -> buildGroups(songs, order) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        combine(_songs, _sortOrder, favoriteIds) { songs, order, favorites ->
+            buildGroups(songs, order, favorites)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private var controller: MediaController? = null
 
@@ -128,6 +134,13 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             MediaItem.Builder()
                 .setUri(it.uri)
                 .setMediaId(it.id.toString())
+                .setMediaMetadata(
+                    androidx.media3.common.MediaMetadata.Builder()
+                        .setTitle(it.title)
+                        .setArtist(it.artist)
+                        .setAlbumTitle(it.album)
+                        .build()
+                )
                 .build()
         }
         val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
@@ -175,6 +188,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         _sortOrder.value = order
     }
 
+    fun toggleFavorite(song: Song) {
+        viewModelScope.launch {
+            favoritesRepository.toggleFavorite(song.id)
+        }
+    }
+
     fun toggleSelection(song: Song) {
         _selectedIds.value = _selectedIds.value.toMutableSet().apply {
             if (contains(song.id)) remove(song.id) else add(song.id)
@@ -206,10 +225,14 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun buildGroups(list: List<Song>, order: SortOrder): List<SongGroup> {
+    private fun buildGroups(list: List<Song>, order: SortOrder, favorites: Set<Long>): List<SongGroup> {
         return when (order) {
             SortOrder.DATE_ADDED -> {
                 listOf(SongGroup(header = null, songs = list.sortedByDescending { it.dateAdded }))
+            }
+            SortOrder.FAVORITES -> {
+                val favSongs = list.filter { it.id in favorites }.sortedBy { it.title.uppercase() }
+                listOf(SongGroup(header = "Favourites", songs = favSongs))
             }
             SortOrder.TITLE_AZ -> {
                 list.sortedBy { it.title.uppercase() }

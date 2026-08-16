@@ -4,42 +4,29 @@ import android.Manifest
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sambhavdwivedi.musicplayer.ui.MusicViewModel
 import com.sambhavdwivedi.musicplayer.ui.NowPlayingScreen
 import com.sambhavdwivedi.musicplayer.ui.SongListScreen
 import com.sambhavdwivedi.musicplayer.ui.theme.MusicPlayerTheme
-import androidx.compose.ui.graphics.Color
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,22 +65,22 @@ fun MusicApp() {
         launcher.launch(permission)
     }
 
-    val currentSong by viewModel.currentSong.collectAsState()
+    BackHandler(enabled = showPlayer) {
+        showPlayer = false
+    }
 
-    if (showPlayer && currentSong != null) {
+    if (showPlayer) {
         NowPlayingScreen(viewModel = viewModel, onBack = { showPlayer = false })
     } else {
         Scaffold(
-            containerColor = Color(0xFF080808),
-            bottomBar = {
-                if (currentSong != null) {
-                    NowPlayingBar(viewModel = viewModel, onClick = { showPlayer = true })
-                }
-            }
+            containerColor = Color(0xFF080808)
         ) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
                 if (hasPermission) {
-                    SongListScreen(viewModel = viewModel, onSongOpen = { showPlayer = true })
+                    SongListScreen(
+                        viewModel = viewModel,
+                        onSongOpen = { showPlayer = true }
+                    )
                 } else {
                     Text(
                         "Music permission chahiye songs dikhane ke liye",
@@ -101,48 +88,6 @@ fun MusicApp() {
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun NowPlayingBar(viewModel: MusicViewModel, onClick: () -> Unit) {
-    val song by viewModel.currentSong.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-
-    if (song == null) return
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = song?.title ?: "",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = song?.artist ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        IconButton(onClick = { viewModel.togglePlayPause() }) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Play",
-                tint = MaterialTheme.colorScheme.primary
-            )
         }
     }
 }

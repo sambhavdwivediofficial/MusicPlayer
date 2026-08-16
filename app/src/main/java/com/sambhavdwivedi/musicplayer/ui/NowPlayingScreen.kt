@@ -96,7 +96,7 @@ fun NowPlayingScreen(viewModel: MusicViewModel, onBack: () -> Unit) {
     val repeatMode by viewModel.repeatMode.collectAsState()
 
     var menuExpanded by remember { mutableStateOf(false) }
-    var isFavorite by remember { mutableStateOf(false) }
+    val favoriteIds by viewModel.favoriteIds.collectAsState()
     var isDragging by remember { mutableStateOf(false) }
     var dragPosition by remember { mutableFloatStateOf(0f) }
     var showInfoDialog by remember { mutableStateOf(false) }
@@ -111,6 +111,11 @@ fun NowPlayingScreen(viewModel: MusicViewModel, onBack: () -> Unit) {
 
     val currentSong = song ?: return
     val durationMs = currentSong.durationMs
+    val isFavorite = currentSong.id in favoriteIds
+
+    androidx.activity.compose.BackHandler {
+        onBack()
+    }
 
     fun goNext() {
         direction = 1
@@ -177,7 +182,7 @@ fun NowPlayingScreen(viewModel: MusicViewModel, onBack: () -> Unit) {
                 onPrevious = { goPrevious() },
                 onToggleShuffle = { viewModel.toggleShuffle() },
                 onCycleRepeat = { viewModel.cycleRepeatMode() },
-                onToggleFavorite = { isFavorite = !isFavorite },
+                onToggleFavorite = { viewModel.toggleFavorite(currentSong) },
                 onSeekChange = { isDragging = true; dragPosition = it },
                 onSeekFinished = {
                     viewModel.seekTo((dragPosition * durationMs).toLong())
@@ -208,7 +213,7 @@ fun NowPlayingScreen(viewModel: MusicViewModel, onBack: () -> Unit) {
                 onPrevious = { goPrevious() },
                 onToggleShuffle = { viewModel.toggleShuffle() },
                 onCycleRepeat = { viewModel.cycleRepeatMode() },
-                onToggleFavorite = { isFavorite = !isFavorite },
+                onToggleFavorite = { viewModel.toggleFavorite(currentSong) },
                 onSeekChange = { isDragging = true; dragPosition = it },
                 onSeekFinished = {
                     viewModel.seekTo((dragPosition * durationMs).toLong())
