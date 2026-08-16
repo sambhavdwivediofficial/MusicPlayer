@@ -258,7 +258,7 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
             AlertDialog(
                 onDismissRequest = { showDeleteConfirm = false },
                 title = { Text("Delete ${selectedIds.size} song(s)?") },
-                text = { Text("Ye songs permanently delete ho jayengi aapke phone se. Ye action undo nahi ho sakta.") },
+                text = { Text("Permanently delete these songs?") },
                 confirmButton = {
                     TextButton(onClick = {
                         showDeleteConfirm = false
