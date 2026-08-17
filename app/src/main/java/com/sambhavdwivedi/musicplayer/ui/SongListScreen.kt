@@ -73,6 +73,9 @@ import com.sambhavdwivedi.musicplayer.ui.theme.AppRowSelected
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.rememberCoroutineScope
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -91,6 +94,8 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     val deleteLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
@@ -181,6 +186,9 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                                 onClick = {
                                     sortMenuExpanded = false
                                     viewModel.setSortOrder(SortOrder.TITLE_AZ)
+                                    coroutineScope.launch {
+                                        listState.scrollToItem(0)
+                                    }
                                 }
                             )
                             DropdownMenuItem(
@@ -188,13 +196,6 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                                 onClick = {
                                     sortMenuExpanded = false
                                     viewModel.setSortOrder(SortOrder.FAVORITES)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Sort: Date added") },
-                                onClick = {
-                                    sortMenuExpanded = false
-                                    viewModel.setSortOrder(SortOrder.DATE_ADDED)
                                 }
                             )
                             DropdownMenuItem(
@@ -226,12 +227,13 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                     modifier = Modifier.fillMaxSize().padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Koi songs nahi mile", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("No songs found", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
             else -> {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
                         top = innerPadding.calculateTopPadding() + 4.dp,
@@ -359,7 +361,11 @@ fun SongRow(
                 )
                 Spacer(Modifier.height(5.dp))
                 Text(
-                    text = "${formatSize(song.sizeBytes)} • ${formatDate(song.dateAdded)}",
+                    text = if (song.isBundled) {
+                        formatSize(song.sizeBytes)
+                    } else {
+                        "${formatSize(song.sizeBytes)} • ${formatDate(song.dateAdded)}"
+                    },
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
