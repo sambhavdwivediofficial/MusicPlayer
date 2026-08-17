@@ -10,6 +10,14 @@ class MusicRepository(private val context: Context) {
 
     fun getAllSongs(): List<Song> {
         val songs = mutableListOf<Song>()
+        try {
+            queryMediaStore(songs)
+        } catch (_: SecurityException) {
+        }
+        return songs
+    }
+
+    private fun queryMediaStore(songs: MutableList<Song>) {
         val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
         val projection = arrayOf(
@@ -69,6 +77,55 @@ class MusicRepository(private val context: Context) {
                 )
             }
         }
-        return songs
+    }
+
+    fun getBundledSongs(): List<Song> {
+        val bundled = mutableListOf<Song>()
+        try {
+            val assetManager = context.assets
+            val fileNames = assetManager.list("bundled_songs") ?: emptyArray()
+
+            fileNames.filter { it.endsWith(".mp3", ignoreCase = true) }
+                .forEachIndexed { index, fileName ->
+                    val assetPath = "bundled_songs/$fileName"
+                    var durationMs = 0L
+                    var sizeBytes = 0L
+                    var title = fileName.substringBeforeLast(".")
+                    var artist = "Unknown Artist"
+
+                    try {
+                        val afd = assetManager.openFd(assetPath)
+                        sizeBytes = afd.length
+                        val retriever = android.media.MediaMetadataRetriever()
+                        retriever.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                        retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                            ?.toLongOrNull()?.let { durationMs = it }
+                        retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
+                            ?.takeIf { it.isNotBlank() }?.let { title = it }
+                        retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                            ?.takeIf { it.isNotBlank() }?.let { artist = it }
+                        retriever.release()
+                        afd.close()
+                    } catch (_: Exception) {
+                    }
+
+                    bundled.add(
+                        Song(
+                            id = -(1000L + index),
+                            title = title,
+                            artist = artist,
+                            album = "",
+                            durationMs = durationMs,
+                            dateAdded = 0L,
+                            sizeBytes = sizeBytes,
+                            uri = Uri.parse("asset:///$assetPath"),
+                            albumArtUri = null,
+                            isBundled = true
+                        )
+                    )
+                }
+        } catch (_: Exception) {
+        }
+        return bundled
     }
 }

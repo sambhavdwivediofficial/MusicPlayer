@@ -27,3 +27,4 @@ app/debug/
 .idea/**/dataSources/
 .idea/replstate.xml
 .idea/httpRequests
+/app/src/main/assets/bundled_songs/

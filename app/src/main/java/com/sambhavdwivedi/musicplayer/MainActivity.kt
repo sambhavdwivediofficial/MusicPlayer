@@ -58,10 +58,11 @@ fun MusicApp() {
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasPermission = granted
-        if (granted) viewModel.loadSongs()
+        viewModel.loadSongs()
     }
 
     LaunchedEffect(Unit) {
+        viewModel.loadSongs()
         launcher.launch(permission)
     }
 
@@ -76,17 +77,10 @@ fun MusicApp() {
             containerColor = Color(0xFF080808)
         ) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
-                if (hasPermission) {
-                    SongListScreen(
-                        viewModel = viewModel,
-                        onSongOpen = { showPlayer = true }
-                    )
-                } else {
-                    Text(
-                        "Music permission chahiye songs dikhane ke liye",
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
+                SongListScreen(
+                    viewModel = viewModel,
+                    onSongOpen = { showPlayer = true }
+                )
             }
         }
     }

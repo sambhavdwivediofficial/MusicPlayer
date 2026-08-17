@@ -351,6 +351,7 @@ private fun MobilePlayerLayout(
     ) {
         PlayerTopBar(
             title = null,
+            isBundled = song.isBundled,
             onBack = onBack,
             isFavorite = isFavorite,
             onToggleFavorite = onToggleFavorite,
@@ -499,6 +500,7 @@ private fun TabletPlayerLayout(
     ) {
         PlayerTopBar(
             title = song.title,
+            isBundled = song.isBundled,
             onBack = onBack,
             isFavorite = isFavorite,
             onToggleFavorite = onToggleFavorite,
@@ -611,6 +613,7 @@ private fun TabletPlayerLayout(
 @Composable
 private fun PlayerTopBar(
     title: String?,
+    isBundled: Boolean,
     onBack: () -> Unit,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
@@ -643,8 +646,10 @@ private fun PlayerTopBar(
         } else {
             Spacer(Modifier.weight(1f))
         }
-        IconButton(onClick = onShare) {
-            Icon(Icons.Filled.Share, contentDescription = "Share", tint = Color.White)
+        if (!isBundled) {
+            IconButton(onClick = onShare) {
+                Icon(Icons.Filled.Share, contentDescription = "Share", tint = Color.White)
+            }
         }
         IconButton(onClick = onToggleFavorite) {
             Icon(
@@ -664,14 +669,16 @@ private fun PlayerTopBar(
                     .clip(RoundedCornerShape(14.dp))
                     .background(Color(0xFF1C1C1E))
             ) {
-                DropdownMenuItem(
-                    text = { Text("Song info", color = Color.White) },
-                    leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null, tint = Color.White) },
-                    onClick = {
-                        onMenuDismiss()
-                        onInfoClick()
-                    }
-                )
+                if (!isBundled) {
+                    DropdownMenuItem(
+                        text = { Text("Song info", color = Color.White) },
+                        leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null, tint = Color.White) },
+                        onClick = {
+                            onMenuDismiss()
+                            onInfoClick()
+                        }
+                    )
+                }
                 DropdownMenuItem(
                     text = {
                         Text(
@@ -685,14 +692,16 @@ private fun PlayerTopBar(
                         onSpeedClick()
                     }
                 )
-                DropdownMenuItem(
-                    text = { Text("Delete", color = Color.White) },
-                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.White) },
-                    onClick = {
-                        onMenuDismiss()
-                        onDeleteClick()
-                    }
-                )
+                if (!isBundled) {
+                    DropdownMenuItem(
+                        text = { Text("Delete", color = Color.White) },
+                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.White) },
+                        onClick = {
+                            onMenuDismiss()
+                            onDeleteClick()
+                        }
+                    )
+                }
             }
         }
     }

@@ -11,5 +11,6 @@ data class Song(
     val dateAdded: Long,
     val sizeBytes: Long,
     val uri: Uri,
-    val albumArtUri: Uri?
+    val albumArtUri: Uri?,
+    val isBundled: Boolean = false
 )

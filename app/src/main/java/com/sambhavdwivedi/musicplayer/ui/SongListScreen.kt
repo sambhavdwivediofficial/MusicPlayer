@@ -269,7 +269,7 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                                 showWave = isCurrent && isPlayingGlobal,
                                 onClick = {
                                     if (selectionMode) {
-                                        viewModel.toggleSelection(song)
+                                        if (!song.isBundled) viewModel.toggleSelection(song)
                                     } else if (isCurrent) {
                                         onSongOpen()
                                     } else {
@@ -277,7 +277,7 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                                         onSongOpen()
                                     }
                                 },
-                                onLongClick = { viewModel.toggleSelection(song) }
+                                onLongClick = { if (!song.isBundled) viewModel.toggleSelection(song) }
                             )
                         }
                     }
@@ -378,7 +378,7 @@ fun SongRow(
                 EqualizerBars()
             }
 
-            if (selectionMode) {
+            if (selectionMode && !song.isBundled) {
                 Spacer(Modifier.width(10.dp))
                 SelectionCircle(isSelected = isSelected)
             }

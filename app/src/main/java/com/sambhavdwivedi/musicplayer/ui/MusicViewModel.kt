@@ -123,7 +123,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun loadSongs() {
         viewModelScope.launch {
             _isLoading.value = true
-            val result = withContext(Dispatchers.IO) { repository.getAllSongs() }
+            val result = withContext(Dispatchers.IO) {
+                val bundled = repository.getBundledSongs()
+                val scanned = repository.getAllSongs()
+                bundled + scanned
+            }
             _songs.value = result
             _isLoading.value = false
         }
