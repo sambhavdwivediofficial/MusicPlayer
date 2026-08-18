@@ -18,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.text.SpanStyle
@@ -36,6 +37,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,6 +48,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Groups
@@ -66,9 +69,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,11 +87,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sambhavdwivedi.musicplayer.model.Song
@@ -123,6 +135,7 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+    var showEqualizer by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -131,12 +144,16 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
         viewModel.clearSelection()
     }
 
-    BackHandler(enabled = !showAbout && !selectionMode && sortOrder != SortOrder.DATE_ADDED) {
+    BackHandler(enabled = !showAbout && !showEqualizer && !selectionMode && sortOrder != SortOrder.DATE_ADDED) {
         viewModel.setSortOrder(SortOrder.DATE_ADDED)
     }
 
     BackHandler(enabled = showAbout) {
         showAbout = false
+    }
+
+    BackHandler(enabled = showEqualizer) {
+        showEqualizer = false
     }
 
     val deleteLauncher = rememberLauncherForActivityResult(
@@ -195,14 +212,21 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                     }
                 } else {
                     Text(
-                        text = if (showAbout) "About" else "Music",
+                        text = when {
+                            showAbout -> "About"
+                            showEqualizer -> "Equalizer"
+                            else -> "Music"
+                        },
                         fontSize = 21.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.weight(1f)
                     )
                     if (!showAbout) {
-                        IconButton(onClick = { showAbout = true }) {
+                        IconButton(onClick = {
+                            showAbout = true
+                            showEqualizer = false
+                        }) {
                             Icon(
                                 Icons.Filled.Info,
                                 contentDescription = "About",
@@ -211,6 +235,17 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                         }
                         Spacer(Modifier.width(4.dp))
                     }
+                    IconButton(onClick = {
+                        showEqualizer = true
+                        showAbout = false
+                    }) {
+                        Icon(
+                            Icons.Filled.Equalizer,
+                            contentDescription = "Equalizer",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    Spacer(Modifier.width(4.dp))
                     Box {
                         IconButton(onClick = { sortMenuExpanded = true }) {
                             Icon(
@@ -223,7 +258,6 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                             expanded = sortMenuExpanded,
                             onDismissRequest = { sortMenuExpanded = false },
                             modifier = Modifier
-//                                .clip(RoundedCornerShape(14.dp))
                                 .background(Color(0xFF111111))
                         ) {
                             DropdownMenuItem(
@@ -231,6 +265,7 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                                 onClick = {
                                     sortMenuExpanded = false
                                     showAbout = false
+                                    showEqualizer = false
                                     viewModel.setSortOrder(SortOrder.FAVORITES)
                                 }
                             )
@@ -239,6 +274,7 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
                                 onClick = {
                                     sortMenuExpanded = false
                                     showAbout = false
+                                    showEqualizer = false
                                     viewModel.setSortOrder(SortOrder.TITLE_AZ)
                                     coroutineScope.launch {
                                         listState.scrollToItem(0)
@@ -261,6 +297,8 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
     ) { innerPadding ->
         if (showAbout) {
             AboutContent(modifier = Modifier.fillMaxSize().padding(innerPadding))
+        } else if (showEqualizer) {
+            EqualizerContent(viewModel = viewModel, modifier = Modifier.fillMaxSize().padding(innerPadding))
         } else {
             when {
                 isLoading -> {
@@ -371,6 +409,160 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
     }
 }
 
+@Composable
+private fun EqualizerContent(viewModel: MusicViewModel, modifier: Modifier = Modifier) {
+    val available by viewModel.eqAvailable.collectAsState()
+    val enabled by viewModel.eqEnabled.collectAsState()
+    val bands by viewModel.eqBands.collectAsState()
+    val presets by viewModel.eqPresets.collectAsState()
+    val minLevel by viewModel.eqMinLevel.collectAsState()
+    val maxLevel by viewModel.eqMaxLevel.collectAsState()
+
+    LaunchedEffect(available) {
+        if (available) viewModel.refreshEqualizerState()
+    }
+
+    if (!available) {
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Filled.Equalizer,
+                    contentDescription = null,
+                    tint = Color(0xFF444444),
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "Play a song to use the equalizer",
+                    color = Color(0xFFAAAAAA),
+                    fontSize = 13.sp
+                )
+            }
+        }
+        return
+    }
+
+    Column(
+        modifier = modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (enabled) "Enabled" else "Disabled",
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = enabled,
+                onCheckedChange = { viewModel.toggleEqualizer() },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = Color(0xFF3A3A3C),
+                    uncheckedThumbColor = Color(0xFF888888),
+                    uncheckedTrackColor = Color(0xFF222222)
+                )
+            )
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        if (presets.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                presets.forEachIndexed { index, name ->
+                    Text(
+                        text = name,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xFF1C1C1E))
+                            .clickable { viewModel.applyEqPreset(index.toShort()) }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(28.dp))
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            bands.forEach { band ->
+                VerticalBandSlider(
+                    valueRange = minLevel.toFloat()..maxLevel.toFloat(),
+                    value = band.levelMillibels.toFloat(),
+                    onValueChange = { viewModel.setEqBandLevel(band.index, it.toInt().toShort()) },
+                    label = formatFrequency(band.frequencyHz)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VerticalBandSlider(
+    valueRange: ClosedFloatingPointRange<Float>,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    label: String
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .height(180.dp)
+                .width(40.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = valueRange,
+                modifier = Modifier
+                    .graphicsLayer {
+                        rotationZ = 270f
+                        transformOrigin = TransformOrigin(0f, 0f)
+                    }
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(
+                            Constraints(
+                                minWidth = constraints.minHeight,
+                                maxWidth = constraints.maxHeight,
+                                minHeight = constraints.minWidth,
+                                maxHeight = constraints.maxWidth
+                            )
+                        )
+                        layout(placeable.height, placeable.width) {
+                            placeable.place(-placeable.width, 0)
+                        }
+                    }
+                    .width(180.dp),
+                colors = SliderDefaults.colors(
+                    thumbColor = Color.White,
+                    activeTrackColor = Color.White,
+                    inactiveTrackColor = Color(0xFF3A3A3C)
+                )
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(text = label, color = Color(0xFFAAAAAA), fontSize = 10.sp)
+    }
+}
+
+private fun formatFrequency(hz: Int): String {
+    val khz = hz / 1000
+    return if (hz >= 1000) "${khz}kHz" else "${hz}Hz"
+}
+
 private data class AboutLink(
     val label: String,
     val icon: ImageVector,
@@ -389,7 +581,6 @@ private fun AboutContent(modifier: Modifier = Modifier) {
         AboutLink("Website", Icons.Filled.Public, WEBSITE_URL),
         AboutLink("Blog", Icons.Filled.Article, BLOG_URL),
         AboutLink("Community", Icons.Filled.Groups, COMMUNITY_URL),
-//        AboutLink("Company", Icons.Filled.Business, COMPANY_ONE_URL),
         AboutLink("Company", Icons.Filled.Business, COMPANY_TWO_URL)
     )
 

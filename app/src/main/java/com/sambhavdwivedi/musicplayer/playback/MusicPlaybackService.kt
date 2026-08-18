@@ -3,6 +3,7 @@ package com.sambhavdwivedi.musicplayer.playback
 import android.app.PendingIntent
 import android.content.Intent
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.sambhavdwivedi.musicplayer.MainActivity
@@ -14,6 +15,15 @@ class MusicPlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         val player = ExoPlayer.Builder(this).build()
+
+        player.addAnalyticsListener(object : AnalyticsListener {
+            override fun onAudioSessionIdChanged(
+                eventTime: AnalyticsListener.EventTime,
+                audioSessionId: Int
+            ) {
+                EqualizerController.attach(audioSessionId)
+            }
+        })
 
         val sessionActivityIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -40,6 +50,7 @@ class MusicPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        EqualizerController.release()
         mediaSession?.run {
             player.release()
             release()
