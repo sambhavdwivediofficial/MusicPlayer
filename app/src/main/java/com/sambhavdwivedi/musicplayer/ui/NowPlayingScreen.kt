@@ -666,8 +666,8 @@ private fun PlayerTopBar(
                 expanded = menuExpanded,
                 onDismissRequest = onMenuDismiss,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF1C1C1E))
+//                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFF111111))
             ) {
                 if (!isBundled) {
                     DropdownMenuItem(

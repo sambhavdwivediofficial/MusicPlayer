@@ -30,6 +30,15 @@ class MusicPlaybackService : MediaSessionService() {
         return mediaSession
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        mediaSession?.player?.let { player ->
+            player.stop()
+            player.clearMediaItems()
+        }
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
         mediaSession?.run {
             player.release()
