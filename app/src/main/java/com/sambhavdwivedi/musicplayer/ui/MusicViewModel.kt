@@ -138,6 +138,12 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playSong(song: Song, queue: List<Song> = _songs.value) {
+
+        val artworkBytes =
+            com.sambhavdwivedi.musicplayer.util.NotificationArt.bytes(
+                getApplication<Application>()
+            )
+
         val mediaItems = queue.map {
             MediaItem.Builder()
                 .setUri(it.uri)
@@ -145,16 +151,23 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                 .setMediaMetadata(
                     androidx.media3.common.MediaMetadata.Builder()
                         .setTitle(it.title)
-                        .setArtist(it.artist)
-                        .setAlbumTitle(it.album)
+                        .setArtworkData(
+                            artworkBytes,
+                            androidx.media3.common.MediaMetadata.PICTURE_TYPE_FRONT_COVER
+                        )
                         .build()
                 )
                 .build()
         }
-        val startIndex = queue.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+
+        val startIndex = queue
+            .indexOfFirst { it.id == song.id }
+            .coerceAtLeast(0)
+
         controller?.setMediaItems(mediaItems, startIndex, 0L)
         controller?.prepare()
         controller?.play()
+
         _currentSong.value = song
     }
 

@@ -107,6 +107,9 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.vectorResource
 import com.sambhavdwivedi.musicplayer.R
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
+
 
 private const val DEVELOPER_NAME = "Sambhav Dwivedi"
 private const val GITHUB_PROFILE_URL = "https://github.com/sambhavdwivediofficial"
@@ -117,7 +120,7 @@ private const val REDDIT_URL = "https://www.reddit.com/user/sambhavdwivedi"
 private const val WEBSITE_URL = "https://www.sambhavdwivedi.in"
 private const val BLOG_URL = "https://blog.sambhavdwivedi.in"
 private const val COMMUNITY_URL = "https://www.unitedtechcommunity.in"
-private const val COMPANY_ONE_URL = "https://www.publicon.in"
+//private const val COMPANY_ONE_URL = "https://www.publicon.in"
 private const val COMPANY_TWO_URL = "https://www.peerlink.in"
 private const val APP_SHARE_URL = "https://github.com/sambhavdwivediofficial/MusicPlayer/releases/download/v0.2.0/MusicPlayer.apk"
 
@@ -548,18 +551,23 @@ private fun AboutContent(modifier: Modifier = Modifier) {
     val context = LocalContext.current
 
     val links = listOf(
-        AboutLink("GitHub", Icons.Filled.Code, GITHUB_PROFILE_URL),
-        AboutLink("Project", Icons.Filled.FolderOpen, PROJECT_REPO_URL),
+        AboutLink("Website", Icons.Filled.Public, WEBSITE_URL),
         AboutLink("LinkedIn", ImageVector.vectorResource(R.drawable.ic_linkedin), LINKEDIN_URL),
         AboutLink("Reddit", ImageVector.vectorResource(R.drawable.ic_reddit), REDDIT_URL),
-        AboutLink("Website", Icons.Filled.Public, WEBSITE_URL),
-        AboutLink("Blog", Icons.Filled.Article, BLOG_URL),
-        AboutLink("Community", Icons.Filled.Groups, COMMUNITY_URL),
-        AboutLink("Company", Icons.Filled.Business, COMPANY_TWO_URL)
+        AboutLink("GitHub", Icons.Filled.Code, GITHUB_PROFILE_URL),
+        AboutLink("Project", Icons.Filled.FolderOpen, PROJECT_REPO_URL),
+//        AboutLink("Blog", Icons.Filled.Article, BLOG_URL),
+//        AboutLink("Community", Icons.Filled.Groups, COMMUNITY_URL),
+//        AboutLink("Company", Icons.Filled.Business, COMPANY_TWO_URL)
     )
 
     Column(
-        modifier = modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+        modifier = modifier.padding(
+            start = 24.dp,
+            end = 24.dp,
+            top = 50.dp,
+            bottom = 20.dp
+        ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
@@ -569,11 +577,10 @@ private fun AboutContent(modifier: Modifier = Modifier) {
                 .background(Color(0xFF1C1C1E)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Filled.MusicNote,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(30.dp)
+            Image(
+                painter = painterResource(id = R.drawable.icon),
+                contentDescription = "Music Player",
+                modifier = Modifier.size(64.dp)
             )
         }
 
