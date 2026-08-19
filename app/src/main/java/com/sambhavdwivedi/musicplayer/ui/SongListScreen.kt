@@ -122,7 +122,7 @@ private const val BLOG_URL = "https://blog.sambhavdwivedi.in"
 private const val COMMUNITY_URL = "https://www.unitedtechcommunity.in"
 //private const val COMPANY_ONE_URL = "https://www.publicon.in"
 private const val COMPANY_TWO_URL = "https://www.peerlink.in"
-private const val APP_SHARE_URL = "https://github.com/sambhavdwivediofficial/MusicPlayer/releases/download/v0.2.0/MusicPlayer.apk"
+private const val APP_SHARE_URL = "https://github.com/sambhavdwivediofficial/MusicPlayer/releases/download/v1.0.0/MusicPlayer.apk"
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
