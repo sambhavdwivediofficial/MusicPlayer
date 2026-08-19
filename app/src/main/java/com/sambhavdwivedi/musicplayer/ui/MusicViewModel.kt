@@ -279,17 +279,26 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     data class EqBand(val index: Short, val frequencyHz: Int, val levelMillibels: Short)
 
+    private data class EqPresetDef(val name: String, val gains: List<Float>)
+
+    private val eqFrequencies = listOf(60, 230, 910, 3600, 14000)
+
+    private val eqPresetDefs = listOf(
+        EqPresetDef("Normal", listOf(0f, 0f, 0f, 0f, 0f)),
+        EqPresetDef("Bass Boost", listOf(0.8f, 0.5f, 0f, -0.1f, -0.2f)),
+        EqPresetDef("Treble Boost", listOf(-0.2f, -0.1f, 0f, 0.5f, 0.8f)),
+        EqPresetDef("Rock", listOf(0.5f, 0.3f, -0.2f, 0.3f, 0.5f)),
+        EqPresetDef("Pop", listOf(-0.2f, 0.3f, 0.4f, 0.2f, -0.1f)),
+        EqPresetDef("Jazz", listOf(0.3f, 0.2f, -0.1f, 0.2f, 0.4f)),
+        EqPresetDef("Classical", listOf(0.4f, 0.3f, 0f, 0.3f, 0.5f)),
+        EqPresetDef("Vocal Boost", listOf(-0.3f, 0.1f, 0.5f, 0.4f, -0.1f))
+    )
+
     private val _eqAvailable = MutableStateFlow(false)
     val eqAvailable: StateFlow<Boolean> = _eqAvailable.asStateFlow()
 
-    private val _eqEnabled = MutableStateFlow(false)
+    private val _eqEnabled = MutableStateFlow(true)
     val eqEnabled: StateFlow<Boolean> = _eqEnabled.asStateFlow()
-
-    private val _eqBands = MutableStateFlow<List<EqBand>>(emptyList())
-    val eqBands: StateFlow<List<EqBand>> = _eqBands.asStateFlow()
-
-    private val _eqPresets = MutableStateFlow<List<String>>(emptyList())
-    val eqPresets: StateFlow<List<String>> = _eqPresets.asStateFlow()
 
     private val _eqMinLevel = MutableStateFlow<Short>(-1500)
     val eqMinLevel: StateFlow<Short> = _eqMinLevel.asStateFlow()
@@ -297,42 +306,56 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _eqMaxLevel = MutableStateFlow<Short>(1500)
     val eqMaxLevel: StateFlow<Short> = _eqMaxLevel.asStateFlow()
 
+    private val _eqBands = MutableStateFlow(
+        eqFrequencies.mapIndexed { i, freq -> EqBand(i.toShort(), freq, 0) }
+    )
+    val eqBands: StateFlow<List<EqBand>> = _eqBands.asStateFlow()
+
+    private val _eqPresets = MutableStateFlow(eqPresetDefs.map { it.name })
+    val eqPresets: StateFlow<List<String>> = _eqPresets.asStateFlow()
+
+    private fun applyAllBandsToHardware() {
+        val eq = com.sambhavdwivedi.musicplayer.playback.EqualizerController
+        if (!eq.isAvailable) return
+        val hwBandCount = eq.numberOfBands().toInt()
+        _eqBands.value.forEachIndexed { i, band ->
+            if (i < hwBandCount) {
+                eq.setBandLevel(i.toShort(), band.levelMillibels)
+            }
+        }
+    }
+
     fun refreshEqualizerState() {
         val eq = com.sambhavdwivedi.musicplayer.playback.EqualizerController
         if (!eq.isAvailable) return
-        _eqEnabled.value = eq.isEnabled()
         val range = eq.bandLevelRange()
         _eqMinLevel.value = range[0]
         _eqMaxLevel.value = range[1]
-        val count = eq.numberOfBands()
-        _eqBands.value = (0 until count).map { i ->
-            val band = i.toShort()
-            EqBand(
-                index = band,
-                frequencyHz = eq.centerFrequency(band),
-                levelMillibels = eq.getBandLevel(band)
-            )
-        }
-        val presetCount = eq.presetCount()
-        _eqPresets.value = (0 until presetCount).map { eq.presetName(it.toShort()) }
+        eq.setEnabled(_eqEnabled.value)
+        applyAllBandsToHardware()
     }
 
     fun toggleEqualizer() {
         val new = !_eqEnabled.value
-        com.sambhavdwivedi.musicplayer.playback.EqualizerController.setEnabled(new)
         _eqEnabled.value = new
+        com.sambhavdwivedi.musicplayer.playback.EqualizerController.setEnabled(new)
     }
 
     fun setEqBandLevel(band: Short, level: Short) {
-        com.sambhavdwivedi.musicplayer.playback.EqualizerController.setBandLevel(band, level)
         _eqBands.value = _eqBands.value.map {
             if (it.index == band) it.copy(levelMillibels = level) else it
         }
+        com.sambhavdwivedi.musicplayer.playback.EqualizerController.setBandLevel(band, level)
     }
 
-    fun applyEqPreset(index: Short) {
-        com.sambhavdwivedi.musicplayer.playback.EqualizerController.usePreset(index)
-        refreshEqualizerState()
+    fun applyEqPreset(index: Int) {
+        val preset = eqPresetDefs.getOrNull(index) ?: return
+        val max = _eqMaxLevel.value.toFloat()
+        _eqBands.value = _eqBands.value.mapIndexed { i, band ->
+            val gain = preset.gains.getOrElse(i) { 0f }
+            band.copy(levelMillibels = (gain * max).toInt().toShort())
+        }
+        applyAllBandsToHardware()
     }
 
     override fun onCleared() {

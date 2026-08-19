@@ -411,36 +411,11 @@ fun SongListScreen(viewModel: MusicViewModel, onSongOpen: () -> Unit) {
 
 @Composable
 private fun EqualizerContent(viewModel: MusicViewModel, modifier: Modifier = Modifier) {
-    val available by viewModel.eqAvailable.collectAsState()
     val enabled by viewModel.eqEnabled.collectAsState()
     val bands by viewModel.eqBands.collectAsState()
     val presets by viewModel.eqPresets.collectAsState()
     val minLevel by viewModel.eqMinLevel.collectAsState()
     val maxLevel by viewModel.eqMaxLevel.collectAsState()
-
-    LaunchedEffect(available) {
-        if (available) viewModel.refreshEqualizerState()
-    }
-
-    if (!available) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Filled.Equalizer,
-                    contentDescription = null,
-                    tint = Color(0xFF444444),
-                    modifier = Modifier.size(48.dp)
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "Play a song to use the equalizer",
-                    color = Color(0xFFAAAAAA),
-                    fontSize = 13.sp
-                )
-            }
-        }
-        return
-    }
 
     Column(
         modifier = modifier.padding(horizontal = 20.dp, vertical = 16.dp)
@@ -470,28 +445,27 @@ private fun EqualizerContent(viewModel: MusicViewModel, modifier: Modifier = Mod
 
         Spacer(Modifier.height(20.dp))
 
-        if (presets.isNotEmpty()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                presets.forEachIndexed { index, name ->
-                    Text(
-                        text = name,
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFF1C1C1E))
-                            .clickable { viewModel.applyEqPreset(index.toShort()) }
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            presets.forEachIndexed { index, name ->
+                Text(
+                    text = name,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF1C1C1E))
+                        .clickable { viewModel.applyEqPreset(index) }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
-            Spacer(Modifier.height(28.dp))
         }
+
+        Spacer(Modifier.height(28.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),

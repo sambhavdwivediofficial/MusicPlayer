@@ -45,6 +45,7 @@ class MusicPlaybackService : MediaSessionService() {
             player.stop()
             player.clearMediaItems()
         }
+        EqualizerController.release()
         stopSelf()
         super.onTaskRemoved(rootIntent)
     }
