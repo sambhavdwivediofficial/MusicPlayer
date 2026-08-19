@@ -871,20 +871,13 @@ private fun SelectionCircle(isSelected: Boolean) {
 
 @Composable
 private fun AlbumArt() {
-    Box(
+    Image(
+        painter = painterResource(id = R.drawable.icon),
+        contentDescription = "Music Player",
         modifier = Modifier
             .size(52.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Filled.MusicNote,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
-        )
-    }
+    )
 }
 
 private fun formatDuration(ms: Long): String {
